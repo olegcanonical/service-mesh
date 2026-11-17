@@ -26,7 +26,7 @@ HTTPS_LISTENER_NAME = "https"
 
 def _conditions(obj) -> list:
     """Return the ``.status.conditions`` list of a lightkube object, or []."""
-    status = (getattr(obj, "status", None) or {})
+    status = getattr(obj, "status", None) or {}
     return status.get("conditions", []) if isinstance(status, dict) else []
 
 
@@ -38,9 +38,7 @@ def gateway_class_accepted(name: str = GATEWAY_CLASS_NAME) -> bool:
         if e.status.code == 404:
             return False
         raise
-    return any(
-        c.get("type") == "Accepted" and c.get("status") == "True" for c in _conditions(gc)
-    )
+    return any(c.get("type") == "Accepted" and c.get("status") == "True" for c in _conditions(gc))
 
 
 def gateway_class_controller(name: str = GATEWAY_CLASS_NAME) -> Optional[str]:

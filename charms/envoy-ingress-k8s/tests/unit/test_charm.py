@@ -91,9 +91,11 @@ def test_route_conflict_blocks_and_drops_all_contested_routes(
     ctx, gateway_class_accepted, krm_mocks
 ):
     # GIVEN two different apps whose generated default paths collide
-    with ready_ingress(("b-c", "a"), ("c", "a-b")), patch.object(
-        charm.IngressPerAppProvider, "wipe_ingress_data"
-    ), patch.object(charm.IngressPerAppProvider, "publish_url"):
+    with (
+        ready_ingress(("b-c", "a"), ("c", "a-b")),
+        patch.object(charm.IngressPerAppProvider, "wipe_ingress_data"),
+        patch.object(charm.IngressPerAppProvider, "publish_url"),
+    ):
         # WHEN the charm reconciles
         state_out = ctx.run(ctx.on.config_changed(), make_state())
         # THEN no HTTPRoute is created for either contesting app
@@ -107,9 +109,11 @@ def test_route_conflict_blocks_and_drops_all_contested_routes(
 
 def test_strip_prefix_adds_urlrewrite_filter(ctx, gateway_class_accepted, krm_mocks):
     # GIVEN a requirer that asked for prefix stripping (the normal IPA case)
-    with ready_ingress(("app", "model", 8080, True)), patch.object(
-        charm.IngressPerAppProvider, "publish_url"
-    ), patch.object(charm.IngressPerAppProvider, "wipe_ingress_data"):
+    with (
+        ready_ingress(("app", "model", 8080, True)),
+        patch.object(charm.IngressPerAppProvider, "publish_url"),
+        patch.object(charm.IngressPerAppProvider, "wipe_ingress_data"),
+    ):
         # WHEN the charm reconciles
         ctx.run(ctx.on.config_changed(), make_state())
     # THEN the HTTPRoute carries a URLRewrite filter rewriting the prefix to "/"
@@ -127,9 +131,11 @@ def test_strip_prefix_adds_urlrewrite_filter(ctx, gateway_class_accepted, krm_mo
 
 def test_no_strip_prefix_has_no_filter(ctx, gateway_class_accepted, krm_mocks):
     # GIVEN a requirer that did not ask for prefix stripping
-    with ready_ingress(("app", "model", 8080, False)), patch.object(
-        charm.IngressPerAppProvider, "publish_url"
-    ), patch.object(charm.IngressPerAppProvider, "wipe_ingress_data"):
+    with (
+        ready_ingress(("app", "model", 8080, False)),
+        patch.object(charm.IngressPerAppProvider, "publish_url"),
+        patch.object(charm.IngressPerAppProvider, "wipe_ingress_data"),
+    ):
         # WHEN the charm reconciles
         ctx.run(ctx.on.config_changed(), make_state())
     # THEN the HTTPRoute carries no rewrite filter
@@ -137,13 +143,13 @@ def test_no_strip_prefix_has_no_filter(ctx, gateway_class_accepted, krm_mocks):
     assert objs[0].spec["rules"][0]["filters"] == []
 
 
-def test_http_route_attaches_to_http_listener_without_tls(
-    ctx, gateway_class_accepted, krm_mocks
-):
+def test_http_route_attaches_to_http_listener_without_tls(ctx, gateway_class_accepted, krm_mocks):
     # GIVEN no certificates relation (plaintext ingress)
-    with ready_ingress(("app", "model")), patch.object(
-        charm.IngressPerAppProvider, "publish_url"
-    ), patch.object(charm.IngressPerAppProvider, "wipe_ingress_data"):
+    with (
+        ready_ingress(("app", "model")),
+        patch.object(charm.IngressPerAppProvider, "publish_url"),
+        patch.object(charm.IngressPerAppProvider, "wipe_ingress_data"),
+    ):
         # WHEN the charm reconciles
         ctx.run(ctx.on.config_changed(), make_state())
     # THEN a single route attaches to the HTTP listener and routes to the backend
@@ -158,9 +164,11 @@ def test_route_created_in_backend_namespace_for_cross_model(
 ):
     # GIVEN a requirer whose backend lives in a different model (namespace) than the
     # ingress charm — the cross-model (CMR) case
-    with ready_ingress(("app", "requirer-model")), patch.object(
-        charm.IngressPerAppProvider, "publish_url"
-    ), patch.object(charm.IngressPerAppProvider, "wipe_ingress_data"):
+    with (
+        ready_ingress(("app", "requirer-model")),
+        patch.object(charm.IngressPerAppProvider, "publish_url"),
+        patch.object(charm.IngressPerAppProvider, "wipe_ingress_data"),
+    ):
         # WHEN the charm reconciles
         with ctx(ctx.on.config_changed(), make_state()) as mgr:
             mgr.run()
@@ -179,9 +187,11 @@ def test_tls_routes_backend_to_https_and_redirects_http(
 ):
     # GIVEN issued certificates (HTTPS ingress) — without per-listener routing,
     # HTTPS would 404 because routes only ever attached to the HTTP listener (C2)
-    with ready_ingress(("app", "model")), patch.object(
-        charm.IngressPerAppProvider, "publish_url"
-    ), patch.object(charm.IngressPerAppProvider, "wipe_ingress_data"):
+    with (
+        ready_ingress(("app", "model")),
+        patch.object(charm.IngressPerAppProvider, "publish_url"),
+        patch.object(charm.IngressPerAppProvider, "wipe_ingress_data"),
+    ):
         # WHEN the charm reconciles
         ctx.run(ctx.on.config_changed(), make_state(certificates=True))
     # THEN the backend route attaches to the HTTPS listener
@@ -213,16 +223,10 @@ def test_https_listener_appears_only_with_certificates(
     assert https["tls"]["certificateRefs"][0]["name"] == "envoy-ingress-k8s-tls"
 
 
-def test_security_policy_toggles_with_forward_auth(
-    ctx, gateway_class_accepted, krm_mocks
-):
+def test_security_policy_toggles_with_forward_auth(ctx, gateway_class_accepted, krm_mocks):
     # GIVEN a forward-auth provider advertising a decisions URL (not a Service name)
-    info = SimpleNamespace(
-        decisions_address="http://oauth2-proxy.iam.svc.cluster.local:4180/auth"
-    )
-    with patch.object(
-        charm.ForwardAuthRequirer, "get_provider_info", return_value=info
-    ):
+    info = SimpleNamespace(decisions_address="http://oauth2-proxy.iam.svc.cluster.local:4180/auth")
+    with patch.object(charm.ForwardAuthRequirer, "get_provider_info", return_value=info):
         # WHEN the charm reconciles
         ctx.run(ctx.on.config_changed(), make_state(forward_auth=True))
     # THEN a Backend CR carries the URL's host/port as an FQDN endpoint
@@ -238,9 +242,7 @@ def test_security_policy_toggles_with_forward_auth(
     assert policies[0].spec["extAuth"]["http"]["path"] == "/auth"
 
     # GIVEN the provider goes away
-    with patch.object(
-        charm.ForwardAuthRequirer, "get_provider_info", return_value=None
-    ):
+    with patch.object(charm.ForwardAuthRequirer, "get_provider_info", return_value=None):
         # WHEN the charm reconciles again
         ctx.run(ctx.on.config_changed(), make_state())
     # THEN both the stale SecurityPolicy and Backend are deleted

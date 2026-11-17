@@ -48,6 +48,8 @@ from lightkube.resources.core_v1 import Secret, Service
 from lightkube.resources.rbac_authorization_v1 import ClusterRole
 from ops.pebble import ExecError, Layer
 
+import _compat  # noqa: F401  (must load before any Kubernetes client is created)
+
 logger = logging.getLogger(__name__)
 
 SOURCE_PATH = Path(__file__).parent
@@ -101,6 +103,10 @@ CERTGEN_SECRETS = ("envoy", "envoy-gateway", "envoy-rate-limit", "envoy-oidc-hma
 
 # Sequential minor-version upgrades on upgrade-charm are not yet enforced; see
 # https://github.com/canonical/service-mesh/issues/112
+
+# Accepted values for proxy-external-traffic-policy. Local preserves client source IPs,
+# which allowlists and audit logs depend on.
+VALID_TRAFFIC_POLICIES = ("Local", "Cluster")
 
 # Accepted values for the log-level config. Anything else falls back to the default
 # rather than reaching the controller's config (an invalid value would crash-loop the
@@ -176,12 +182,8 @@ class EnvoyControllerCharm(ops.CharmBase):
         self.framework.observe(self.on.envoy_gateway_pebble_ready, self._reconcile)
         self.framework.observe(self.on["otlp"].relation_changed, self._reconcile)
         self.framework.observe(self.on["otlp"].relation_broken, self._reconcile)
-        self.framework.observe(
-            self.on["envoy-extension-server"].relation_changed, self._reconcile
-        )
-        self.framework.observe(
-            self.on["envoy-extension-server"].relation_broken, self._reconcile
-        )
+        self.framework.observe(self.on["envoy-extension-server"].relation_changed, self._reconcile)
+        self.framework.observe(self.on["envoy-extension-server"].relation_broken, self._reconcile)
 
     @property
     def lightkube_client(self) -> Client:
@@ -364,9 +366,7 @@ class EnvoyControllerCharm(ops.CharmBase):
             event.add_status(ops.MaintenanceStatus("Setting up Envoy Gateway control plane"))
             return
         if not self._container_healthy(container):
-            event.add_status(
-                ops.WaitingStatus("Waiting for envoy-gateway to become healthy")
-            )
+            event.add_status(ops.WaitingStatus("Waiting for envoy-gateway to become healthy"))
             return
         if self._foreign_gateway_class_owner() is not None:
             event.add_status(
@@ -685,8 +685,7 @@ class EnvoyControllerCharm(ops.CharmBase):
                 "valueFrom": {
                     "fieldRef": {
                         "fieldPath": (
-                            "metadata.labels"
-                            "['gateway.envoyproxy.io/owning-gateway-name']"
+                            "metadata.labels['gateway.envoyproxy.io/owning-gateway-name']"
                         )
                     }
                 },
@@ -696,8 +695,7 @@ class EnvoyControllerCharm(ops.CharmBase):
                 "valueFrom": {
                     "fieldRef": {
                         "fieldPath": (
-                            "metadata.labels"
-                            "['gateway.envoyproxy.io/owning-gateway-namespace']"
+                            "metadata.labels['gateway.envoyproxy.io/owning-gateway-namespace']"
                         )
                     }
                 },
@@ -705,14 +703,21 @@ class EnvoyControllerCharm(ops.CharmBase):
         ]
         # `provider` is not on canonical_service_mesh.EnvoyProxySpec yet, so merge
         # onto the dumped dict verbatim.
-        spec_dict["provider"] = {
-            "type": "Kubernetes",
-            "kubernetes": {
-                "envoyDeployment": {
-                    "container": {"env": env},
-                }
+        replicas = max(1, int(self.config["proxy-replicas"]))
+        policy = str(self.config["proxy-external-traffic-policy"])
+        if policy not in VALID_TRAFFIC_POLICIES:
+            logger.warning("Invalid proxy-external-traffic-policy %r; using Local", policy)
+            policy = "Local"
+        kubernetes: dict = {
+            "envoyDeployment": {
+                "replicas": replicas,
+                "container": {"env": env},
             },
+            "envoyService": {"externalTrafficPolicy": policy},
         }
+        if replicas > 1:
+            kubernetes["envoyPDB"] = {"minAvailable": replicas - 1}
+        spec_dict["provider"] = {"type": "Kubernetes", "kubernetes": kubernetes}
         return EnvoyProxy(
             metadata=ObjectMeta(name=self.app.name, namespace=self.model.name),
             spec=spec_dict,
@@ -754,9 +759,7 @@ class EnvoyControllerCharm(ops.CharmBase):
         # when its *layer* changes — not when a pushed file does. Stamp a hash of the rendered
         # config into the service environment so a config change (log-level, OTLP sink) alters
         # the layer and replan restarts the controller to pick it up.
-        config_hash = hashlib.sha256(
-            self._construct_envoy_gateway_config().encode()
-        ).hexdigest()
+        config_hash = hashlib.sha256(self._construct_envoy_gateway_config().encode()).hexdigest()
         return Layer(
             {
                 "summary": "Envoy Gateway",

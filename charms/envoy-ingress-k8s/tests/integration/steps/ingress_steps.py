@@ -121,7 +121,9 @@ def traffic_returns_200(juju: Juju) -> None:
 @then("no HTTPRoutes exist for the previously related charm")
 def no_httproute_for_previous(juju: Juju) -> None:
     """Assert the removed requirer's HTTPRoute was deleted."""
-    juju.wait(lambda _: not helpers.httproute_exists(juju.model, PRODUCTPAGE), timeout=300, delay=5)
+    juju.wait(
+        lambda _: not helpers.httproute_exists(juju.model, PRODUCTPAGE), timeout=300, delay=5
+    )
 
 
 @then("an HTTPRoute exists for productpage")

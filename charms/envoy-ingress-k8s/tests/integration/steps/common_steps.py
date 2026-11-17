@@ -68,8 +68,7 @@ def charm_is_active(juju: Juju) -> None:
 def charm_is_waiting_with_message(juju: Juju, message: str) -> None:
     """Wait until the charm settles into waiting with the expected message."""
     juju.wait(
-        lambda s: all_waiting(s, APP_NAME)
-        and s.apps[APP_NAME].app_status.message == message,
+        lambda s: all_waiting(s, APP_NAME) and s.apps[APP_NAME].app_status.message == message,
         timeout=1000,
         delay=5,
         successes=3,
@@ -80,8 +79,7 @@ def charm_is_waiting_with_message(juju: Juju, message: str) -> None:
 def charm_is_blocked_with_message(juju: Juju, message: str) -> None:
     """Wait until the charm settles into blocked with the expected message."""
     juju.wait(
-        lambda s: all_blocked(s, APP_NAME)
-        and s.apps[APP_NAME].app_status.message == message,
+        lambda s: all_blocked(s, APP_NAME) and s.apps[APP_NAME].app_status.message == message,
         timeout=1000,
         delay=5,
         successes=3,

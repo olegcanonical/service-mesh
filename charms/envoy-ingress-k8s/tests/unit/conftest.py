@@ -73,23 +73,23 @@ def krm_mocks():
     Yields a namespace exposing each resource manager mock so tests can assert
     on ``reconcile``/``delete`` calls without touching the cluster.
     """
-    with patch.object(
-        EnvoyIngressCharm, "_gateway_krm"
-    ) as gateway, patch.object(
-        EnvoyIngressCharm, "_httproute_krm"
-    ) as httproute, patch.object(
-        EnvoyIngressCharm, "_security_policy_krm"
-    ) as security_policy, patch.object(
-        EnvoyIngressCharm, "_ext_auth_backend_krm"
-    ) as ext_auth_backend, patch.object(
-        EnvoyIngressCharm, "_tls_secret_krm"
-    ) as tls_secret:
+    with (
+        patch.object(EnvoyIngressCharm, "_gateway_krm") as gateway,
+        patch.object(EnvoyIngressCharm, "_httproute_krm") as httproute,
+        patch.object(EnvoyIngressCharm, "_security_policy_krm") as security_policy,
+        patch.object(EnvoyIngressCharm, "_ext_auth_backend_krm") as ext_auth_backend,
+        patch.object(EnvoyIngressCharm, "_tls_secret_krm") as tls_secret,
+        patch.object(EnvoyIngressCharm, "_l4_route_krm") as l4_route,
+        patch.object(EnvoyIngressCharm, "_http3_policy_krm") as http3_policy,
+    ):
         yield SimpleNamespace(
             gateway=gateway.return_value,
             httproute=httproute.return_value,
             security_policy=security_policy.return_value,
             ext_auth_backend=ext_auth_backend.return_value,
             tls_secret=tls_secret.return_value,
+            l4_route=l4_route.return_value,
+            http3_policy=http3_policy.return_value,
         )
 
 
@@ -133,9 +133,7 @@ def make_state(
     if forward_auth:
         relations.add(scenario.Relation("forward-auth", interface="forward_auth"))
     if gateway_metadata:
-        relations.add(
-            scenario.Relation("gateway-metadata", interface="gateway_metadata")
-        )
+        relations.add(scenario.Relation("gateway-metadata", interface="gateway_metadata"))
     return scenario.State(
         leader=leader,
         planned_units=planned_units,
