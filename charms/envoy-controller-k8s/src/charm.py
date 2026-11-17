@@ -139,7 +139,9 @@ def _load_crd_yaml(directory: str) -> list:
     docs = []
     for yaml_file in sorted(crd_dir.glob("*.yaml")):
         docs.extend(load_all_yaml(yaml_file.read_text(), create_resources_for_crds=False))
-    return docs
+    # The upstream Gateway API bundle also ships a ValidatingAdmissionPolicy that guards
+    # against mixing channels/versions; the charm owns the CRDs, so only CRDs are managed.
+    return [d for d in docs if d.kind == "CustomResourceDefinition"]
 
 
 class _CrdsNotEstablishedError(Exception):

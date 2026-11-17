@@ -107,7 +107,7 @@ resources:
   envoy-gateway-image:
     type: oci-image
     description: Envoy Gateway controller OCI image
-    upstream-source: docker.io/envoyproxy/gateway:v1.7.0
+    upstream-source: docker.io/envoyproxy/gateway:v1.9.4
 
 parts:
   charm:

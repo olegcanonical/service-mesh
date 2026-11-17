@@ -16,13 +16,13 @@ from typing import Optional
 from lightkube.generic_resource import create_namespaced_resource
 from lightkube.models.meta_v1 import ObjectMeta
 
-# TCPRoute and UDPRoute are experimental-channel Gateway API kinds; the controller
+# TCPRoute and UDPRoute are Gateway API kinds; the controller
 # charm bundles their CRDs.
 TCPRoute = create_namespaced_resource(
-    "gateway.networking.k8s.io", "v1alpha2", "TCPRoute", "tcproutes"
+    "gateway.networking.k8s.io", "v1", "TCPRoute", "tcproutes"
 )
 UDPRoute = create_namespaced_resource(
-    "gateway.networking.k8s.io", "v1alpha2", "UDPRoute", "udproutes"
+    "gateway.networking.k8s.io", "v1", "UDPRoute", "udproutes"
 )
 ClientTrafficPolicy = create_namespaced_resource(
     "gateway.envoyproxy.io", "v1alpha1", "ClientTrafficPolicy", "clienttrafficpolicies"
